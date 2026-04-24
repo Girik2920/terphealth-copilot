@@ -1,14 +1,18 @@
 import { useMemo, useState } from 'react'
 import {
   Activity,
+  AlertTriangle,
+  ArrowRight,
   Brain,
   Building2,
-  ChevronRight,
+  CheckCircle2,
   ClipboardCheck,
+  Clock3,
   FileText,
   HeartPulse,
   Loader2,
   MapPin,
+  MessageSquareText,
   ShieldCheck,
   Sparkles,
   Stethoscope,
@@ -34,10 +38,10 @@ const demoScenarios = [
 ]
 
 const dashboardCards = [
-  ['Insurance Decoder', 'Turn SHIP documents into plain-English costs and next steps.', FileText, 'insurance', 'bg-sky-100 text-sky-700'],
-  ['Smart Care Navigator', 'Find the cheapest, closest, fastest, best-fit care option.', Stethoscope, 'navigator', 'bg-emerald-100 text-emerald-700'],
-  ['Mental Health & Wellness Hub', 'Campus counseling, burnout support, crisis help, and wellness.', Brain, 'wellness', 'bg-violet-100 text-violet-700'],
-  ['Nearby Low-Cost Care', 'Mock College Park resources ranked by cost and fit.', MapPin, 'nearby', 'bg-rose-100 text-rose-700'],
+  ['Insurance Decoder', 'Plain-English costs, copays, prescriptions, and network rules.', FileText, 'insurance', 'bg-sky-50 text-sky-700 ring-sky-100'],
+  ['Smart Care Navigator', 'Rank care options by cost, fit, speed, and student context.', Stethoscope, 'navigator', 'bg-emerald-50 text-emerald-700 ring-emerald-100'],
+  ['Mental Health Hub', 'Counseling, crisis support, burnout help, and workshops.', Brain, 'wellness', 'bg-violet-50 text-violet-700 ring-violet-100'],
+  ['Nearby Low-Cost Care', 'Campus, urgent care, free clinic, and ER guidance.', MapPin, 'nearby', 'bg-red-50 text-red-700 ring-red-100'],
 ]
 
 const resources = [
@@ -118,25 +122,31 @@ function App() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6fbfc]">
+    <main className="min-h-screen bg-[#f4f8f9] text-slate-950">
+      <Header />
       <Hero onScenario={runScenario} />
-      <section className="mx-auto -mt-10 grid w-[min(1180px,calc(100%-32px))] gap-4 md:grid-cols-4">
+      <section className="mx-auto grid w-[min(1160px,calc(100%-32px))] gap-3 py-8 sm:grid-cols-2 lg:grid-cols-4">
         {dashboardCards.map(([title, description, Icon, tab, accent]) => (
-          <button key={title} onClick={() => setActiveTab(tab)} className="group rounded-lg border border-slate-200 bg-white p-5 text-left shadow-lg shadow-slate-200/50 transition hover:-translate-y-1 hover:border-teal-300">
-            <span className={`mb-4 inline-flex h-11 w-11 items-center justify-center rounded-lg ${accent}`}>
-              <Icon size={23} />
+          <button
+            key={title}
+            onClick={() => setActiveTab(tab)}
+            className={`group flex min-h-[158px] flex-col justify-between rounded-lg border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md ${
+              activeTab === tab ? 'border-teal-500 ring-2 ring-teal-100' : 'border-slate-200'
+            }`}
+          >
+            <span className={`flex h-11 w-11 items-center justify-center rounded-lg ring-1 ${accent}`}>
+              <Icon size={22} />
             </span>
-            <h3 className="text-base font-bold text-slate-950">{title}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-            <span className="mt-4 inline-flex items-center text-sm font-semibold text-teal-700">
-              Open <ChevronRight size={16} className="transition group-hover:translate-x-1" />
-            </span>
+            <div>
+              <h3 className="text-base font-bold tracking-tight">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+            </div>
           </button>
         ))}
       </section>
 
-      <section className="mx-auto grid w-[min(1180px,calc(100%-32px))] gap-6 py-10 lg:grid-cols-[1.08fr_0.92fr]">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+      <section className="mx-auto grid w-[min(1160px,calc(100%-32px))] gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
           {activeTab === 'navigator' && <NavigatorPanel concern={concern} setConcern={setConcern} loading={loading} onSubmit={() => askCopilot('navigator')} onScenario={runScenario} />}
           {activeTab === 'insurance' && <InsurancePanel insuranceText={insuranceText} setInsuranceText={setInsuranceText} loading={loading} onSubmit={() => askCopilot('insurance')} />}
@@ -150,32 +160,75 @@ function App() {
   )
 }
 
+function Header() {
+  return (
+    <header className="border-b border-slate-200 bg-white/85 backdrop-blur">
+      <div className="mx-auto flex w-[min(1160px,calc(100%-32px))] flex-wrap items-center justify-between gap-3 py-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-700 text-white">
+            <HeartPulse size={22} />
+          </span>
+          <div>
+            <p className="text-lg font-black tracking-tight">TerpHealth Copilot</p>
+            <p className="text-xs font-medium text-slate-500">UMD student healthcare navigator</p>
+          </div>
+        </div>
+        <div className="flex max-w-full items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 sm:text-sm">
+          <AlertTriangle size={16} className="shrink-0" />
+          <span>This app is not medical advice. For emergencies call 911 or go to the ER.</span>
+        </div>
+      </div>
+    </header>
+  )
+}
+
 function Hero({ onScenario }) {
   return (
-    <section className="relative overflow-hidden bg-slate-950 text-white">
-      <img src="/images/terphealth-hero.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-55" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,30,45,.94),rgba(8,30,45,.76)_42%,rgba(8,30,45,.22))]" />
-      <div className="relative mx-auto min-h-[560px] w-[min(1180px,calc(100%-32px))] py-8">
-        <nav className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/12 ring-1 ring-white/20"><HeartPulse size={24} /></span>
-            <div>
-              <p className="text-lg font-black tracking-wide">TerpHealth Copilot</p>
-              <p className="text-xs text-teal-100">Student healthcare navigation MVP</p>
+    <section className="border-b border-slate-200 bg-white">
+      <div className="mx-auto grid w-[min(1160px,calc(100%-32px))] gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_430px] lg:py-14">
+        <div className="min-w-0">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-800">
+            <Sparkles size={16} />
+            TurboTax + Google Maps for student healthcare
+          </div>
+          <h1 className="max-w-3xl text-4xl font-black leading-[1.05] tracking-tight text-slate-950 sm:text-5xl">
+            Understand care, coverage, and cost before you book.
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
+            A calm first stop for UMD students who need to decode SHIP-like benefits, choose the right care setting, and avoid avoidable bills.
+          </p>
+          <div className="mt-7 grid gap-2 sm:grid-cols-2">
+            {demoScenarios.map((scenario) => (
+              <button
+                key={scenario}
+                onClick={() => onScenario(scenario)}
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-900"
+              >
+                <span className="min-w-0">{scenario}</span>
+                <ArrowRight size={16} className="shrink-0" />
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-[#f7fbfb] p-4 shadow-sm">
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Care route</p>
+                <p className="mt-1 font-black">Sore throat, not emergency</p>
+              </div>
+              <span className="rounded-lg bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Low cost</span>
+            </div>
+            <div className="mt-4 space-y-3">
+              <RouteStep icon={Stethoscope} label="Best first stop" value="UMD Health Center" tone="teal" />
+              <RouteStep icon={Clock3} label="After hours" value="Nearby urgent care" tone="sky" />
+              <RouteStep icon={WalletCards} label="Avoid unless emergency" value="ER: high cost" tone="red" />
             </div>
           </div>
-          <div className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-teal-50 backdrop-blur">
-            This app is not medical advice. For emergencies call 911 or go to the ER.
-          </div>
-        </nav>
-        <div className="mt-20 max-w-2xl">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-200/30 bg-teal-100/15 px-4 py-2 text-sm font-semibold text-teal-50"><Sparkles size={16} /> TurboTax + Google Maps for student healthcare</div>
-          <h1 className="max-w-3xl text-5xl font-black leading-tight text-white sm:text-6xl">Understand care, coverage, and cost before you book.</h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-100">A campus-ready AI navigator for UMD students, international students, and anyone trying to decode SHIP benefits, find care, and avoid surprise bills.</p>
-          <div className="mt-7 flex flex-wrap gap-2">
-            {demoScenarios.map((scenario) => (
-              <button key={scenario} onClick={() => onScenario(scenario)} className="rounded-full border border-white/20 bg-white/12 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/22">{scenario}</button>
-            ))}
+          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+            <Metric value="$0-low" label="Campus care" />
+            <Metric value="$$" label="Urgent care" />
+            <Metric value="911" label="Emergency" />
           </div>
         </div>
       </div>
@@ -183,12 +236,40 @@ function Hero({ onScenario }) {
   )
 }
 
+function RouteStep({ icon: Icon, label, value, tone }) {
+  const tones = {
+    teal: 'bg-teal-50 text-teal-700',
+    sky: 'bg-sky-50 text-sky-700',
+    red: 'bg-red-50 text-red-700',
+  }
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tones[tone]}`}>
+        <Icon size={18} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs font-bold text-slate-500">{label}</p>
+        <p className="truncate text-sm font-black text-slate-950">{value}</p>
+      </div>
+    </div>
+  )
+}
+
+function Metric({ value, label }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <p className="text-lg font-black text-slate-950">{value}</p>
+      <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
+    </div>
+  )
+}
+
 function Tabs({ activeTab, setActiveTab }) {
   const tabs = [['navigator', 'Navigator'], ['insurance', 'Insurance'], ['wellness', 'Wellness'], ['nearby', 'Nearby Care'], ['benefits', 'Hidden Benefits']]
   return (
-    <div className="mb-6 flex gap-2 overflow-x-auto rounded-lg bg-slate-100 p-1">
+    <div className="mb-6 flex gap-1 overflow-x-auto border-b border-slate-200 pb-2">
       {tabs.map(([id, label]) => (
-        <button key={id} onClick={() => setActiveTab(id)} className={`shrink-0 rounded-md px-4 py-2 text-sm font-bold transition ${activeTab === id ? 'bg-white text-teal-800 shadow-sm' : 'text-slate-600 hover:text-slate-950'}`}>{label}</button>
+        <button key={id} onClick={() => setActiveTab(id)} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-bold transition ${activeTab === id ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'}`}>{label}</button>
       ))}
     </div>
   )
@@ -197,10 +278,10 @@ function Tabs({ activeTab, setActiveTab }) {
 function NavigatorPanel({ concern, setConcern, loading, onSubmit, onScenario }) {
   return (
     <div>
-      <PanelHeader icon={Stethoscope} title="Smart Care Navigator" text="Describe what is going on. The copilot ranks options by cheapest, closest, fastest, and best fit." />
-      <textarea value={concern} onChange={(event) => setConcern(event.target.value)} placeholder="Example: I have a sore throat and I am not sure if I should go to the health center or urgent care." className="mt-5 min-h-36 w-full rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-900 outline-none transition focus:border-teal-400 focus:bg-white focus:ring-4 focus:ring-teal-100" />
+      <PanelHeader icon={Stethoscope} title="Smart Care Navigator" text="Describe what is going on. The copilot ranks options by cost, distance, speed, and clinical fit without trying to diagnose." />
+      <textarea value={concern} onChange={(event) => setConcern(event.target.value)} placeholder="Example: I have a sore throat and I am not sure if I should go to the health center or urgent care." className="mt-5 min-h-36 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-100" />
       <div className="mt-4 flex flex-wrap gap-2">
-        {demoScenarios.map((scenario) => <button key={scenario} onClick={() => onScenario(scenario)} className="rounded-full bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-teal-100 hover:text-teal-800">{scenario}</button>)}
+        {demoScenarios.map((scenario) => <button key={scenario} onClick={() => onScenario(scenario)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800">{scenario}</button>)}
       </div>
       <PrimaryButton loading={loading} onClick={onSubmit} label="Get care recommendation" />
       <CostEstimator />
@@ -211,12 +292,12 @@ function NavigatorPanel({ concern, setConcern, loading, onSubmit, onScenario }) 
 function InsurancePanel({ insuranceText, setInsuranceText, loading, onSubmit }) {
   return (
     <div>
-      <PanelHeader icon={ShieldCheck} title="Insurance Upload / Decoder" text="Paste insurance text or use the included UMD SHIP-like sample. PDF upload is shown for MVP demo flow." />
-      <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-lg border border-dashed border-teal-300 bg-teal-50 p-4 text-sm text-teal-900">
-        <span className="flex items-center gap-3"><ClipboardCheck size={20} /> Optional PDF upload UI for demo</span>
-        <input type="file" accept="application/pdf" className="max-w-48 text-xs" />
+      <PanelHeader icon={ShieldCheck} title="Insurance Decoder" text="Paste insurance text or use the included SHIP-like sample to translate benefits into student-friendly language." />
+      <label className="mt-5 flex cursor-pointer flex-col gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between">
+        <span className="flex items-center gap-3 font-semibold"><ClipboardCheck size={20} className="text-teal-700" /> Optional PDF upload UI for demo</span>
+        <input type="file" accept="application/pdf" className="max-w-full text-xs" />
       </label>
-      <textarea value={insuranceText} onChange={(event) => setInsuranceText(event.target.value)} className="mt-4 min-h-64 w-full rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-900 outline-none transition focus:border-teal-400 focus:bg-white focus:ring-4 focus:ring-teal-100" />
+      <textarea value={insuranceText} onChange={(event) => setInsuranceText(event.target.value)} className="mt-4 min-h-64 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-900 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-100" />
       <PrimaryButton loading={loading} onClick={onSubmit} label="Decode insurance in plain English" />
     </div>
   )
@@ -225,12 +306,12 @@ function InsurancePanel({ insuranceText, setInsuranceText, loading, onSubmit }) 
 function WellnessPanel() {
   return (
     <div>
-      <PanelHeader icon={Brain} title="Mental Health & Wellness Hub" text="A quick campus-style map for support before stress becomes a crisis." />
+      <PanelHeader icon={Brain} title="Mental Health & Wellness Hub" text="A campus-style map for support before stress becomes a crisis." />
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {wellnessResources.map((item) => (
-          <div key={item} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-700"><Brain size={18} /></div>
-            <h3 className="font-bold text-slate-950">{item}</h3>
+          <div key={item} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <CheckCircle2 size={20} className="text-violet-700" />
+            <h3 className="mt-3 font-bold text-slate-950">{item}</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">Ask about appointments, groups, workshops, crisis response, and low-cost care paths.</p>
           </div>
         ))}
@@ -246,9 +327,9 @@ function NearbyPanel() {
       <div className="mt-5 space-y-3">
         {resources.map(([name, type, cost, when, notes]) => (
           <div key={name} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div><h3 className="font-black text-slate-950">{name}</h3><p className="mt-1 text-sm font-semibold text-teal-700">{type}</p></div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">{cost}</span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0"><h3 className="font-black text-slate-950">{name}</h3><p className="mt-1 text-sm font-semibold text-teal-700">{type}</p></div>
+              <span className="w-fit rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">{cost}</span>
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-700"><strong>When to use:</strong> {when}</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">{notes}</p>
@@ -264,7 +345,7 @@ function BenefitsPanel({ loading, onSubmit }) {
     <div>
       <PanelHeader icon={WalletCards} title="Hidden Benefits Finder" text="Benefits students may already have but often miss in the plan summary." />
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        {benefitCards.map(([title, text]) => <div key={title} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><h3 className="font-bold text-slate-950">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></div>)}
+        {benefitCards.map(([title, text]) => <div key={title} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"><h3 className="font-bold text-slate-950">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></div>)}
       </div>
       <PrimaryButton loading={loading} onClick={onSubmit} label="Ask AI to find hidden benefits" />
     </div>
@@ -276,7 +357,7 @@ function CostEstimator() {
     <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
       <div className="mb-4 flex items-center gap-2"><Activity size={19} className="text-teal-700" /><h3 className="font-black text-slate-950">Cost estimator</h3></div>
       <div className="grid gap-3">
-        {costRows.map(([place, cost, note]) => <div key={place} className="grid gap-2 rounded-lg bg-white p-3 sm:grid-cols-[150px_130px_1fr]"><strong className="text-slate-950">{place}</strong><span className="font-bold text-teal-700">{cost}</span><span className="text-sm text-slate-600">{note}</span></div>)}
+        {costRows.map(([place, cost, note]) => <div key={place} className="grid gap-2 rounded-lg border border-slate-100 bg-white p-3 sm:grid-cols-[150px_130px_1fr]"><strong className="text-slate-950">{place}</strong><span className="font-bold text-teal-700">{cost}</span><span className="text-sm text-slate-600">{note}</span></div>)}
       </div>
     </div>
   )
@@ -284,15 +365,15 @@ function CostEstimator() {
 
 function CopilotPanel({ loading, aiResponse, aiMode }) {
   return (
-    <aside className="rounded-lg border border-slate-200 bg-slate-950 p-5 text-white shadow-sm lg:sticky lg:top-6 lg:self-start">
+    <aside className="min-w-0 rounded-lg border border-slate-200 bg-slate-950 p-4 text-white shadow-sm lg:sticky lg:top-5 lg:self-start">
       <div className="flex items-start justify-between gap-4">
-        <div><p className="text-sm font-semibold text-teal-200">AI navigator response</p><h2 className="mt-1 text-2xl font-black">Care plan preview</h2></div>
-        <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-teal-100">{aiMode.includes('claude') ? 'Claude API' : 'Demo mock'}</span>
+        <div className="min-w-0"><p className="text-sm font-semibold text-teal-200">Copilot response</p><h2 className="mt-1 text-2xl font-black tracking-tight">Care plan preview</h2></div>
+        <span className="shrink-0 rounded-lg bg-white/10 px-3 py-1 text-xs font-bold text-teal-100">{aiMode.includes('claude') ? 'Claude API' : 'Demo mock'}</span>
       </div>
-      <div className="mt-5 min-h-[560px] rounded-lg border border-white/10 bg-white/[0.06] p-4">
-        {loading && <div className="flex h-80 flex-col items-center justify-center text-center text-teal-50"><Loader2 className="mb-4 animate-spin" size={34} /><p className="font-bold">Ranking care options and translating insurance jargon...</p><p className="mt-2 max-w-sm text-sm text-slate-300">Cheapest, closest, fastest, and best fit are being weighed for a student-friendly answer.</p></div>}
+      <div className="mt-5 min-h-[520px] overflow-auto rounded-lg border border-white/10 bg-white/[0.06] p-4">
+        {loading && <div className="flex h-80 flex-col items-center justify-center text-center text-teal-50"><Loader2 className="mb-4 animate-spin" size={34} /><p className="font-bold">Ranking care options...</p><p className="mt-2 max-w-sm text-sm leading-6 text-slate-300">Cost, speed, campus fit, and safety routing are being weighed for a student-friendly answer.</p></div>}
         {!loading && aiResponse && <pre className="whitespace-pre-wrap text-sm leading-7 text-slate-100">{aiResponse}</pre>}
-        {!loading && !aiResponse && <div className="space-y-4 text-sm leading-7 text-slate-200"><p>Start with a sample scenario, paste an insurance summary, or ask the hidden benefits finder. The response will appear here in a judge-friendly format.</p><div className="rounded-lg bg-white/8 p-4"><p className="font-bold text-white">Example format</p><ol className="mt-2 list-decimal space-y-1 pl-5"><li>Best option</li><li>Why</li><li>Estimated cost</li><li>Backup options</li><li>Questions to ask before booking</li><li>Safety disclaimer</li></ol></div><p className="text-teal-100">This app is not medical advice. For emergencies call 911 or go to the ER.</p></div>}
+        {!loading && !aiResponse && <div className="space-y-4 text-sm leading-7 text-slate-200"><p>Start with a sample scenario, paste an insurance summary, or ask the hidden benefits finder.</p><div className="rounded-lg border border-white/10 bg-white/8 p-4"><p className="font-bold text-white">Response format</p><ol className="mt-2 list-decimal space-y-1 pl-5"><li>Best option</li><li>Why</li><li>Estimated cost</li><li>Backup options</li><li>Questions to ask before booking</li><li>Safety disclaimer</li></ol></div><p className="text-teal-100">This app is not medical advice. For emergencies call 911 or go to the ER.</p></div>}
       </div>
     </aside>
   )
@@ -301,17 +382,17 @@ function CopilotPanel({ loading, aiResponse, aiMode }) {
 function PanelHeader({ icon: Icon, title, text }) {
   return (
     <div className="flex gap-4">
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-teal-700"><Icon size={24} /></span>
-      <div><h2 className="text-2xl font-black text-slate-950">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></div>
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-teal-100"><Icon size={24} /></span>
+      <div className="min-w-0"><h2 className="text-2xl font-black tracking-tight text-slate-950">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></div>
     </div>
   )
 }
 
 function PrimaryButton({ loading, onClick, label }) {
   return (
-    <button onClick={onClick} disabled={loading} className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-teal-700 px-5 py-3 font-bold text-white shadow-lg shadow-teal-700/20 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70">
-      {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-      {label}
+    <button onClick={onClick} disabled={loading} className="mt-5 inline-flex max-w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70">
+      {loading ? <Loader2 className="animate-spin" size={18} /> : <MessageSquareText size={18} />}
+      <span>{label}</span>
     </button>
   )
 }
