@@ -1,67 +1,61 @@
 # TerpHealth Copilot
 
-AI-powered healthcare navigation MVP for University of Maryland students.
+TurboTax + Google Maps for UMD student healthcare.
 
-TerpHealth Copilot helps students understand SHIP-like insurance benefits, choose the right level of care, estimate costs, find campus and nearby low-cost resources, and uncover hidden benefits.
+TerpHealth Copilot is a hackathon MVP for University of Maryland College Park students. It helps students choose where to go for care, understand UMD SHIP/Aetna-style cost estimates, find campus and nearby resources, and avoid surprise bills.
+
+## Current Product Focus
+
+- Built for UMD students using UMD SHIP/Aetna 2025-2026 benefit estimates.
+- No insurance upload or PDF parsing.
+- Hardcoded care navigation logic works without an AI API.
+- Sample scenario cards auto-fill the navigator, scroll to the answer, show loading, and render a structured recommendation.
 
 ## Features
 
-- Home dashboard with Insurance Decoder, Smart Care Navigator, Mental Health & Wellness Hub, and Nearby Low-Cost Care.
-- AI-style care recommendations in a fixed judge-friendly format.
-- Claude API support through `ANTHROPIC_API_KEY`.
-- Realistic mock fallback when no API key is present, so the demo still works.
-- Pasted insurance text decoder with optional PDF upload UI.
-- Cost estimator for UMD Health Center, urgent care, ER, and community/free clinic options.
-- Hidden Benefits Finder for preventive care, vaccines, telehealth, prescriptions, counseling, screenings, and wellness programs.
-- Demo scenario buttons for quick judging.
+- UMD-branded hero, emergency banner, sticky navigation, and Go Terps microcopy.
+- Clickable sample scenarios:
+  - I have a sore throat
+  - I twisted my ankle
+  - I feel burned out
+  - I need therapy but I'm worried about cost
+  - I need a prescription refill
+  - I got a medical bill
+  - I need STI testing
+  - I need urgent care after hours
+- AI Care Navigator-style response card:
+  - Best first stop
+  - Estimated cost with UMD SHIP
+  - Why
+  - Cheaper alternative / backup
+  - Red flags / when to escalate
+  - Questions to ask before booking
+  - Safety disclaimer
+- UMD SHIP cost cheat sheet.
+- Resource directory filtered by Campus, Mental Health, Urgent Care, Low Cost, and Emergency.
+- Hidden benefits section.
+- Judge demo script modal.
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env
 npm run dev
 ```
 
-Open the Vite URL shown in the terminal, usually:
+Open:
 
 ```bash
 http://localhost:5173
 ```
 
-The Express API runs at:
+## Deploy
 
 ```bash
-http://localhost:3001
+npm run build
+npx vercel --prod --yes
 ```
 
-## Anthropic Claude API
+## Disclaimer
 
-The app works without an API key by using mock navigator responses.
-
-To use live Claude responses:
-
-1. Copy `.env.example` to `.env`.
-2. Add your key:
-
-```bash
-ANTHROPIC_API_KEY=your_key_here
-```
-
-3. Restart `npm run dev`.
-
-The Claude integration lives in `server/index.js`. If the API call fails, the backend automatically falls back to mock responses.
-
-## Important Disclaimer
-
-This app is not medical advice. For emergencies call 911 or go to the ER.
-
-## Scripts
-
-```bash
-npm run dev      # Runs Vite frontend and Express backend together
-npm run client   # Runs only the Vite frontend
-npm run server   # Runs only the Express backend
-npm run build    # Builds the frontend
-npm run lint     # Runs ESLint
-```
+This is not medical advice or a final insurance quote. For emergencies call 911. For mental health crisis call/text 988 or UMD Counseling Center 301-314-7651.

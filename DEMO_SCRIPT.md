@@ -1,37 +1,43 @@
 # TerpHealth Copilot Judge Demo Script
 
-## 30-second pitch
+## 20-second pitch
 
-TerpHealth Copilot is TurboTax plus Google Maps for student healthcare. It helps UMD students understand insurance, choose the right care option, estimate likely costs, and find campus or low-cost resources before they get a surprise bill.
+TerpHealth Copilot is TurboTax plus Google Maps for UMD student healthcare. It helps College Park students decide where to go before they get the bill.
 
 ## Demo flow
 
 1. Start on the homepage.
-   - Point out the four cards: Insurance Decoder, Smart Care Navigator, Mental Health & Wellness Hub, Nearby Low-Cost Care.
-   - Mention the disclaimer: this is not medical advice, and emergencies should go to 911 or the ER.
+   - Point out the UMD branding, emergency banner, and "Built for UMD students using UMD SHIP/Aetna 2025-2026 benefit estimates."
 
 2. Click "I have a sore throat."
-   - Show that the app recommends UMD Health Center first.
-   - Explain that urgent care is a backup and ER is only for emergencies.
-   - Point out cost ranking: campus care low/free, urgent care moderate, ER high.
+   - The scenario card becomes selected.
+   - The page automatically scrolls to the AI Care Navigator.
+   - The input is filled and a loading state appears.
+   - The answer recommends University Health Center first.
 
-3. Click "I feel burned out."
-   - Show that it routes to UMD Counseling Center, Behavioral Health Services, workshops, and peer/community support.
-   - Emphasize low-cost and campus-specific mental health pathways.
+3. Explain the output.
+   - Best first stop: University Health Center.
+   - Estimated cost: likely $0 for covered sick visit/lab at UHC under SHIP.
+   - Backup: nearby urgent care, estimated $25-$75 depending on Aetna network/coding.
+   - Avoid ER unless trouble breathing, severe dehydration, chest pain, or emergency symptoms.
+   - Questions to ask: "Is this covered under SHIP? Is the test/lab billed separately?"
 
-4. Open Insurance Decoder.
-   - Use the prefilled SHIP-like data.
-   - Click "Decode insurance in plain English."
-   - Point out deductible, copay, urgent care, ER, prescriptions, mental health, and in-network vs out-of-network explanations.
+4. Click "I feel burned out."
+   - Show UMD Counseling Center first.
+   - Explain that it is free for registered UMD students.
+   - Mention 988 and UMD Counseling Center crisis support.
 
-5. Open Hidden Benefits.
-   - Show preventive care, vaccines, telehealth, mental health counseling, prescription discounts, annual screenings, and wellness programs.
-   - Click the AI button to generate a benefits-focused response.
+5. Show SHIP Costs.
+   - UHC covered services may be $0.
+   - Doctor/specialist visit: $25 copay.
+   - Mental health visit: $25 copay.
+   - ER: $100 listed copay, waived if admitted, other charges may apply.
+   - Prescriptions: $20 generic / $40 preferred brand / $60 non-preferred brand.
 
-6. Open Nearby Low-Cost Care.
-   - Show UMD Health Center, urgent care, community clinic, free clinic, and hospital/ER.
-   - Explain each card includes type, estimated cost, when to use, and notes.
+6. Show Resource Directory.
+   - Filter Campus, Mental Health, Urgent Care, Low Cost, Emergency.
+   - Each card includes best for, estimated cost, phone/location, and what to ask before going.
 
 ## Closing line
 
-For students, especially international students, healthcare choices are confusing and expensive. TerpHealth Copilot gives them a friendly first stop to understand coverage, pick the right care setting, and avoid unnecessary ER or out-of-network costs.
+For students, especially international students, the hard part is not only getting care. It is knowing which door to walk through and what it might cost. TerpHealth Copilot turns that confusion into a simple UMD-specific next step.

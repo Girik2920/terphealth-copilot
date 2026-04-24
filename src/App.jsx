@@ -1,234 +1,462 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
-  Activity,
   AlertTriangle,
+  Ambulance,
   ArrowRight,
+  BadgeDollarSign,
+  BookOpenText,
   Brain,
   Building2,
   CheckCircle2,
-  ClipboardCheck,
-  Clock3,
-  FileText,
+  CircleDollarSign,
+  ClipboardList,
   HeartPulse,
   Loader2,
   MapPin,
   MessageSquareText,
+  Pill,
   ShieldCheck,
   Sparkles,
   Stethoscope,
-  WalletCards,
+  X,
 } from 'lucide-react'
 
-const sampleInsuranceText = `UMD Student Health Insurance Plan sample summary:
-Primary care visit: low copay
-Specialist visit: higher copay
-Urgent care: moderate copay
-Emergency room: high copay / coinsurance
-Mental health outpatient visit: covered with copay
-Preventive care: usually covered
-Prescriptions: tiered copay
-In-network care is cheaper than out-of-network care`
+const UMD_SHIP_BENEFITS = {
+  provider: 'Aetna Student Health',
+  network: 'Aetna PPO',
+  planYear: '2025-2026',
+  annualStudentCostEstimate: '$2,806 total if buying Fall + Spring/Summer as listed in 2025-2026 summary',
+  fallRate: '$1,176',
+  springRate: '$1,630',
+  summerRate: '$469',
+  inNetworkDeductible: '$250',
+  outOfNetworkDeductible: '$500',
+  inNetworkOutOfPocketMax: '$1,500',
+  outOfNetworkOutOfPocketMax: '$3,500',
+  umdHealthCenterCoveredServices: '$0 for covered services at UMD Health Center, including sick visits, lab work, x-rays, behavioral health, immunizations, women\'s health, and international travel services',
+  physicianSpecialistCopay: '$25 per visit, deductible waived',
+  mentalHealthOfficeVisitCopay: '$25 per visit, deductible waived',
+  emergencyRoomCopay: '$100 per visit, deductible waived, copay waived if admitted',
+  prescriptionCopays: {
+    generic: '$20',
+    preferredBrand: '$40',
+    nonPreferredBrand: '$60',
+  },
+  preventiveCare: '100% in-network, deductible waived',
+  labAndXray: 'Generally 80% after deductible outside UMD Health Center, but covered UMD Health Center services may be $0',
+  inpatientOutpatientSurgery: '80% in-network / 60% out-of-network after deductible',
+}
 
-const demoScenarios = [
+const UMD_RESOURCES = [
+  {
+    name: 'University Health Center',
+    type: 'Campus care',
+    category: 'Campus',
+    location: 'Building #140, UMD College Park',
+    phone: '301-314-8184',
+    bestFor: ['sick visit', 'primary care', 'x-ray', 'lab', 'immunizations', 'sexual health', 'prescription refill', 'minor injury'],
+    estimatedCostWithSHIP: '$0 for many covered services at UHC',
+    notes: 'Best first stop for non-emergency student health needs.',
+    ask: 'Ask whether the visit, lab, x-ray, or vaccine is a covered UHC service under SHIP.',
+  },
+  {
+    name: 'UMD Counseling Center',
+    type: 'Free mental health support',
+    category: 'Mental Health',
+    location: 'Shoemaker Building',
+    phone: '301-314-7651',
+    bestFor: ['stress', 'anxiety', 'burnout', 'relationship issues', 'roommate stress', 'academic pressure', 'career anxiety'],
+    estimatedCostWithSHIP: 'Free for registered UMD students',
+    notes: 'Brief assessment, urgent visits during business hours, after-hours crisis support by phone.',
+    ask: 'Ask about urgent visits, groups, brief assessment, and after-hours support.',
+  },
+  {
+    name: 'UMD Psychiatry & Substance Use Services / PASS',
+    type: 'Campus psychiatry and behavioral health',
+    category: 'Mental Health',
+    location: 'University Health Center',
+    phone: '301-314-8184',
+    bestFor: ['medication management', 'psychiatry', 'substance use support', 'behavioral health'],
+    estimatedCostWithSHIP: 'Often covered through SHIP; use UHC/campus care pathway first',
+    notes: 'Good for psychiatric medication or substance-use related concerns.',
+    ask: 'Ask whether an intake, referral, or medication appointment is needed.',
+  },
+  {
+    name: 'College Park Medical Center',
+    type: 'Nearby urgent/primary care',
+    category: 'Urgent Care',
+    location: 'College Park, MD',
+    phone: '301-345-4400',
+    bestFor: ['urgent care', 'walk-in care', 'strep test', 'flu test', 'COVID test', 'minor wounds'],
+    estimatedCostWithSHIP: 'Likely $25 physician visit if in-network; confirm Aetna network before going',
+    notes: 'Nearby option when UHC is closed or unavailable.',
+    ask: 'Ask whether they are in-network with Aetna Student Health and whether tests bill separately.',
+  },
+  {
+    name: 'Urgent Care / Aetna in-network urgent care',
+    type: 'Urgent care',
+    category: 'Urgent Care',
+    location: 'Nearby College Park / Hyattsville / Greenbelt',
+    phone: 'Use Aetna provider search',
+    bestFor: ['sprain', 'minor injury', 'fever', 'infection', 'strep', 'non-life-threatening urgent issue'],
+    estimatedCostWithSHIP: 'Estimate around $25-$75 depending on provider/coding; confirm in-network',
+    notes: 'Cheaper than ER for non-emergencies.',
+    ask: 'Ask for the visit copay estimate and whether imaging or labs are billed separately.',
+  },
+  {
+    name: 'Emergency Room',
+    type: 'Emergency care',
+    category: 'Emergency',
+    location: 'Nearest ER',
+    phone: '911',
+    bestFor: ['chest pain', 'trouble breathing', 'severe allergic reaction', 'major injury', 'suicidal intent', 'stroke symptoms'],
+    estimatedCostWithSHIP: '$100 ER copay listed in UMD SHIP summary; other charges may apply depending on services',
+    notes: 'Use for true emergencies only. Copay may be waived if admitted.',
+    ask: 'For emergencies, do not delay care to ask billing questions.',
+  },
+  {
+    name: '988 Suicide & Crisis Lifeline',
+    type: '24/7 crisis support',
+    category: 'Emergency',
+    location: 'Call or text 988',
+    phone: '988',
+    bestFor: ['suicidal thoughts', 'mental health crisis', 'urgent emotional distress'],
+    estimatedCostWithSHIP: 'Free',
+    notes: 'For immediate mental health crisis support.',
+    ask: 'Use now if there is immediate emotional danger or suicidal thoughts.',
+  },
+  {
+    name: 'UMD Mental Health & Well-being Hub',
+    type: 'Campus resource directory',
+    category: 'Mental Health',
+    location: 'UMD',
+    phone: 'N/A',
+    bestFor: ['wellness events', 'mental health campaigns', 'campus support', 'connection', 'student resources'],
+    estimatedCostWithSHIP: 'Free campus resources',
+    notes: 'One-stop hub for UMD mental health and wellness resources.',
+    ask: 'Ask which support path fits your situation and schedule.',
+  },
+  {
+    name: 'Center for Healthy Families',
+    type: 'Sliding-scale therapy',
+    category: 'Low Cost',
+    location: 'UMD School of Public Health',
+    phone: 'Check center website',
+    bestFor: ['couples therapy', 'family therapy', 'individual therapy', 'relationship conflict'],
+    estimatedCostWithSHIP: 'Sliding-scale / lower-cost option',
+    notes: 'Good for roommate/relationship/family stress support.',
+    ask: 'Ask about sliding-scale fees, appointment wait time, and student eligibility.',
+  },
+  {
+    name: 'Community clinic / CCI Health & Wellness type clinics',
+    type: 'Low-cost community care',
+    category: 'Low Cost',
+    location: 'Prince George\'s County / nearby Maryland',
+    phone: 'Check clinic',
+    bestFor: ['low-cost primary care', 'uninsured care', 'family planning', 'behavioral health'],
+    estimatedCostWithSHIP: 'Low-cost/sliding-scale; varies by clinic',
+    notes: 'Useful for students worried about cost or access.',
+    ask: 'Ask about sliding-scale fees, insurance billing, and appointment availability.',
+  },
+]
+
+const scenarios = [
   'I have a sore throat',
-  'I feel burned out',
   'I twisted my ankle',
-  'I got a medical bill',
+  'I feel burned out',
   "I need therapy but I'm worried about cost",
+  'I need a prescription refill',
+  'I got a medical bill',
+  'I need STI testing',
+  'I need urgent care after hours',
 ]
 
-const dashboardCards = [
-  ['Insurance Decoder', 'Plain-English costs, copays, prescriptions, and network rules.', FileText, 'insurance', 'bg-sky-50 text-sky-700 ring-sky-100'],
-  ['Smart Care Navigator', 'Rank care options by cost, fit, speed, and student context.', Stethoscope, 'navigator', 'bg-emerald-50 text-emerald-700 ring-emerald-100'],
-  ['Mental Health Hub', 'Counseling, crisis support, burnout help, and workshops.', Brain, 'wellness', 'bg-violet-50 text-violet-700 ring-violet-100'],
-  ['Nearby Low-Cost Care', 'Campus, urgent care, free clinic, and ER guidance.', MapPin, 'nearby', 'bg-red-50 text-red-700 ring-red-100'],
+const costCards = [
+  ['UMD Health Center covered services', 'Likely $0', UMD_SHIP_BENEFITS.umdHealthCenterCoveredServices, Building2],
+  ['Doctor/specialist office visit', '$25 copay', UMD_SHIP_BENEFITS.physicianSpecialistCopay, Stethoscope],
+  ['Mental health office visit', '$25 copay', UMD_SHIP_BENEFITS.mentalHealthOfficeVisitCopay, Brain],
+  ['Emergency room', '$100 copay', `${UMD_SHIP_BENEFITS.emergencyRoomCopay}; other charges may apply.`, Ambulance],
+  ['Prescriptions', '$20 / $40 / $60', `Generic ${UMD_SHIP_BENEFITS.prescriptionCopays.generic}, preferred brand ${UMD_SHIP_BENEFITS.prescriptionCopays.preferredBrand}, non-preferred brand ${UMD_SHIP_BENEFITS.prescriptionCopays.nonPreferredBrand}.`, Pill],
+  ['In-network deductible', UMD_SHIP_BENEFITS.inNetworkDeductible, `In-network out-of-pocket max: ${UMD_SHIP_BENEFITS.inNetworkOutOfPocketMax}.`, ShieldCheck],
+  ['Preventive care', '100%', UMD_SHIP_BENEFITS.preventiveCare, CheckCircle2],
+  ['Out-of-network deductible', UMD_SHIP_BENEFITS.outOfNetworkDeductible, `Out-of-network out-of-pocket max: ${UMD_SHIP_BENEFITS.outOfNetworkOutOfPocketMax}.`, CircleDollarSign],
 ]
 
-const resources = [
-  ['UMD Health Center', 'Campus clinic', 'Low or free', 'Primary care, illness, prescriptions, vaccines, basic labs', 'Best first stop when symptoms are not an emergency and campus is open.'],
-  ['UMD Counseling Center', 'Mental health', 'Often free or low cost', 'Stress, anxiety, burnout, academic pressure, short-term counseling', 'Ask about individual counseling, groups, workshops, and same-day support.'],
-  ['Nearby College Park Urgent Care', 'Urgent care', 'Moderate copay', 'After-hours illness, minor injuries, ankle sprains, sore throat', 'Confirm in-network status and copay before booking when possible.'],
-  ['Community Free Clinic', 'Free or sliding-scale clinic', 'Low or free', 'Basic care when cost is the main barrier or insurance is confusing', 'May have limited hours and appointment availability.'],
-  ['Hospital Emergency Department', 'ER / hospital', 'High copay or coinsurance', 'Chest pain, trouble breathing, severe bleeding, fainting, stroke symptoms, suicidal intent', 'Use for emergencies. Call 911 if immediate help is needed.'],
+const hiddenBenefits = [
+  'Many covered services at UMD Health Center may be $0',
+  'Free UMD Counseling Center services for registered students',
+  '24-hour nurse line / telehealth may help with next-step guidance',
+  'Preventive care is 100% in-network, deductible waived',
+  'Prescription copay tiers can make generics cheaper',
+  'Mental health and crisis resources are available on and off campus',
+  'International student-friendly insurance education can prevent surprise bills',
 ]
 
-const wellnessResources = [
-  'UMD Counseling Center',
-  'Behavioral Health Services',
-  'Wellness workshops',
-  'Stress and burnout support',
-  'Crisis support',
-  'Peer/community support',
-  'International student support',
-]
+const disclaimer = 'This is not medical advice or a final insurance quote. For emergencies call 911. For mental health crisis call/text 988 or UMD Counseling Center 301-314-7651.'
 
-const benefitCards = [
-  ['Preventive checkups', 'Often covered before you feel sick.'],
-  ['Vaccines', 'Ask about flu, COVID, travel, and routine immunizations.'],
-  ['Mental health counseling', 'Covered visits or campus options may reduce cost.'],
-  ['Telehealth', 'Good for quick questions, refills, and low-acuity care.'],
-  ['Prescription discounts', 'Tiered copays and generic medications can lower bills.'],
-  ['Annual screenings', 'Preventive labs and screenings may be included.'],
-  ['Campus wellness programs', 'Workshops, coaching, and group support can be free.'],
-]
+function classifyConcern(symptomText) {
+  const text = symptomText.toLowerCase()
+  if (/chest pain|trouble breathing|difficulty breathing|stroke|severe allergic|major injury|unconscious|overdose|severe bleeding/.test(text)) return 'emergency'
+  if (/suicidal|kill myself|self harm|hurt myself|mental health crisis|crisis/.test(text)) return 'mental_health_crisis'
+  if (/anxious|anxiety|burned out|burnout|therapy|therapist|depressed|stress|overwhelmed|panic|roommate|relationship|academic pressure/.test(text)) return 'mental_health_nonurgent'
+  if (/sore throat|throat|fever|strep|flu|covid|cough|infection/.test(text)) return 'sore_throat_fever'
+  if (/ankle|sprain|twisted|injury|hurt|fall|fell|minor injury|x-ray|xray/.test(text)) return 'injury_sprain'
+  if (/refill|prescription|medicine|medication|pharmacy|generic/.test(text)) return 'prescription_refill'
+  if (/bill|charged|claim|deductible|copay|coinsurance|invoice|itemized/.test(text)) return 'medical_bill'
+  if (/preventive|checkup|annual|vaccine|immunization|screening|sti|std|testing|sexual health/.test(text)) return 'preventive_care'
+  if (/after hours|urgent care|closed|walk-in|walk in/.test(text)) return 'sore_throat_fever'
+  return 'general_primary_care'
+}
 
-const costRows = [
-  ['UMD Health Center', '$0-low', 'Best first stop for non-emergency student care.'],
-  ['Urgent Care', '$$ moderate copay', 'Good after hours for minor illness or injury.'],
-  ['Emergency Room', '$$$ high', 'Use only for emergencies or severe symptoms.'],
-  ['Free/community clinic', '$0-low', 'Helpful when cost or insurance access is a barrier.'],
-]
-
-function App() {
-  const [activeTab, setActiveTab] = useState('navigator')
-  const [concern, setConcern] = useState('')
-  const [insuranceText, setInsuranceText] = useState(sampleInsuranceText)
-  const [aiResponse, setAiResponse] = useState('')
-  const [aiMode, setAiMode] = useState('mock-ready')
-  const [loading, setLoading] = useState(false)
-
-  const currentPrompt = useMemo(() => {
-    if (activeTab === 'insurance') return insuranceText
-    if (activeTab === 'benefits') return 'Find hidden benefits in the UMD SHIP-like plan.'
-    return concern
-  }, [activeTab, concern, insuranceText])
-
-  async function askCopilot(mode, overridePrompt) {
-    const prompt = overridePrompt ?? currentPrompt
-    if (!prompt.trim()) return
-    setLoading(true)
-    setAiResponse('')
-    try {
-      const response = await fetch('/api/copilot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, prompt, insuranceText }),
-      })
-      const data = await response.json()
-      setAiResponse(data.answer)
-      setAiMode(data.mode)
-    } catch {
-      setAiMode('offline-mock')
-      setAiResponse('1. Best option\nUMD Health Center is the best starting point for non-emergency symptoms.\n\n2. Why\nThe local demo backend is not reachable, so this is an offline fallback response.\n\n3. Estimated cost\nUsually low or free for many student services.\n\n4. Backup options\nUse urgent care for after-hours needs. Use the ER or call 911 for emergencies.\n\n5. Questions to ask before booking\nAsk whether the visit is in-network, what the copay is, and whether labs or prescriptions cost extra.\n\n6. Safety disclaimer\nThis app is not medical advice. For emergencies call 911 or go to the ER.')
-    } finally {
-      setLoading(false)
-    }
+function getCareRecommendation(symptomText) {
+  const category = classifyConcern(symptomText)
+  const base = {
+    category,
+    disclaimer,
+    sourceNote: 'Estimated / based on UMD SHIP 2025-2026 summary; final costs depend on provider, network status, coding, and services performed.',
   }
 
-  function runScenario(text) {
-    setActiveTab('navigator')
-    setConcern(text)
-    askCopilot('navigator', text)
+  const recommendations = {
+    emergency: {
+      bestOption: 'Call 911 or go to the nearest Emergency Room now.',
+      why: 'Your symptoms may need immediate emergency evaluation. Do not delay care to compare costs.',
+      estimatedCost: '$100 ER copay is listed in the UMD SHIP summary, deductible waived and copay waived if admitted; other charges may apply depending on services.',
+      cheaperAlternative: 'No cheaper alternative should replace emergency care when symptoms are serious.',
+      whenToEscalate: 'Escalate immediately for chest pain, trouble breathing, stroke symptoms, severe allergic reaction, major injury, or severe bleeding.',
+      questions: ['After you are safe, ask whether the hospital and physicians were in-network.', 'Ask for an itemized bill and explanation of benefits.'],
+      resources: ['Emergency Room', '988 Suicide & Crisis Lifeline'],
+    },
+    mental_health_crisis: {
+      bestOption: 'Call/text 988 now, call UMD Counseling Center at 301-314-7651, or call 911 if there is immediate danger.',
+      why: 'Crisis support is designed for immediate emotional distress and safety planning.',
+      estimatedCost: '988 is free. UMD Counseling Center support is free for registered UMD students.',
+      cheaperAlternative: 'For non-immediate support, UMD Counseling Center is still the best low-cost first step.',
+      whenToEscalate: 'Escalate now if there are suicidal thoughts, intent to self-harm, inability to stay safe, or danger to someone else.',
+      questions: ['Can I get urgent support today?', 'What after-hours crisis support is available?'],
+      resources: ['988 Suicide & Crisis Lifeline', 'UMD Counseling Center'],
+    },
+    mental_health_nonurgent: {
+      bestOption: 'UMD Counseling Center first.',
+      why: 'It is campus-specific, free for registered UMD students, and can route you to workshops, groups, brief assessment, or outside therapy if needed.',
+      estimatedCost: 'Free for registered UMD students. Outside therapy through SHIP may estimate around a $25 mental health office visit copay, deductible waived.',
+      cheaperAlternative: 'Wellness workshops, peer/community support, and the UMD Mental Health & Well-being Hub are free campus resources.',
+      whenToEscalate: 'Call/text 988, call UMD Counseling Center, or call 911 if you feel unsafe or might hurt yourself.',
+      questions: ['Is this free for registered students?', 'Can I get a brief assessment?', 'Can you refer me to an Aetna in-network therapist?', 'Is PASS/UHC appropriate for medication or psychiatry?'],
+      resources: ['UMD Counseling Center', 'UMD Psychiatry & Substance Use Services / PASS', 'UMD Mental Health & Well-being Hub'],
+    },
+    sore_throat_fever: {
+      bestOption: 'University Health Center.',
+      why: 'For a sore throat, fever, strep/flu/COVID test, or non-emergency illness, UHC is usually the best first stop for UMD students and may avoid urgent care or ER costs.',
+      estimatedCost: 'Likely $0 for covered sick visit/lab at UHC under SHIP. Nearby urgent care backup may estimate $25-$75 depending on Aetna network status and coding.',
+      cheaperAlternative: 'Use UHC before urgent care when open. Use Aetna provider search before off-campus care.',
+      whenToEscalate: 'Go to urgent care or ER for trouble breathing, severe dehydration, chest pain, severe worsening symptoms, or other emergency symptoms.',
+      questions: ['Is this covered under SHIP?', 'Is the test or lab billed separately?', 'Is this provider in-network with Aetna Student Health?'],
+      resources: ['University Health Center', 'College Park Medical Center', 'Urgent Care / Aetna in-network urgent care'],
+    },
+    injury_sprain: {
+      bestOption: 'University Health Center if the injury is not severe.',
+      why: 'UHC can handle many minor injuries, and covered UHC services may be $0. It is a cheaper first step than the ER for non-emergency sprains.',
+      estimatedCost: 'X-ray at UHC may be covered at $0 if it is a covered UHC service. Outside facilities may involve deductible/coinsurance. Urgent care estimate: $25-$75. ER estimate: $100 copay plus possible additional costs.',
+      cheaperAlternative: 'Use UHC first if open and symptoms are not severe.',
+      whenToEscalate: 'Use urgent care or ER for severe swelling, inability to bear weight, deformity, numbness, major trauma, or uncontrolled pain.',
+      questions: ['Can UHC do x-rays for this?', 'Is imaging covered at $0 here?', 'Will an outside x-ray bill separately?', 'Do I need an in-network referral?'],
+      resources: ['University Health Center', 'Urgent Care / Aetna in-network urgent care', 'Emergency Room'],
+    },
+    prescription_refill: {
+      bestOption: 'University Health Center or your primary care clinician.',
+      why: 'A refill request is usually best handled through primary care/campus care instead of urgent care, unless it is time-sensitive and UHC is unavailable.',
+      estimatedCost: `Prescription copay estimate at Aetna-contracted pharmacies: generic ${UMD_SHIP_BENEFITS.prescriptionCopays.generic}, preferred brand ${UMD_SHIP_BENEFITS.prescriptionCopays.preferredBrand}, non-preferred brand ${UMD_SHIP_BENEFITS.prescriptionCopays.nonPreferredBrand}.`,
+      cheaperAlternative: 'Ask for a generic medication and use an Aetna-contracted pharmacy.',
+      whenToEscalate: 'Seek urgent care if missing the medication could become medically urgent and your clinician cannot help in time.',
+      questions: ['Is a visit required for this refill?', 'Is there a generic version?', 'Is my pharmacy in-network?', 'Which prescription tier is this?'],
+      resources: ['University Health Center', 'UMD Psychiatry & Substance Use Services / PASS'],
+    },
+    medical_bill: {
+      bestOption: 'Do not pay immediately. Compare the bill against UMD SHIP benefits and call Aetna/AHP plus provider billing.',
+      why: 'Bills can be wrong, unprocessed, out-of-network, or missing insurance adjustments. An itemized bill and EOB can reveal what happened.',
+      estimatedCost: 'Depends on network status, coding, deductible, copay, and services performed. UHC covered services may be $0, office visits may be $25, ER copay may be $100 plus other charges.',
+      cheaperAlternative: 'Ask the provider about reprocessing the claim, financial assistance, payment plans, or correcting network/billing errors.',
+      whenToEscalate: 'Escalate to the insurer/provider supervisor if insurance was not applied, the provider says out-of-network unexpectedly, or the charge looks inconsistent with the EOB.',
+      questions: ['Can I get an itemized bill?', 'Was this processed by Aetna Student Health?', 'Was the provider in-network?', 'Which CPT codes were billed?', 'Did this apply to deductible, copay, or coinsurance?'],
+      resources: ['University Health Center', 'Community clinic / CCI Health & Wellness type clinics'],
+    },
+    preventive_care: {
+      bestOption: 'University Health Center for preventive care, vaccines, STI testing, sexual health, and immunizations.',
+      why: 'UHC is built for UMD students, and preventive care is 100% in-network with deductible waived. Many covered UHC services may be $0.',
+      estimatedCost: 'Preventive care is listed as 100% in-network, deductible waived. Covered UHC services may be $0. Final cost depends on service and coding.',
+      cheaperAlternative: 'Use UHC before off-campus clinics when possible. Community clinics may help if cost/access is a barrier.',
+      whenToEscalate: 'Escalate to urgent care for severe symptoms, high fever, or time-sensitive concerns when UHC is closed.',
+      questions: ['Is this coded as preventive?', 'Is this a covered UHC service?', 'Will labs bill separately?', 'Do I need an appointment?'],
+      resources: ['University Health Center', 'Community clinic / CCI Health & Wellness type clinics'],
+    },
+    general_primary_care: {
+      bestOption: 'University Health Center.',
+      why: 'For non-emergency student health needs, UHC is the safest first navigation step and may be the lowest-cost option under UMD SHIP.',
+      estimatedCost: 'Many covered services at UHC may be $0. Off-campus doctor/specialist visits are listed around a $25 copay, deductible waived.',
+      cheaperAlternative: 'Try UHC first, then Aetna in-network providers if you need off-campus care.',
+      whenToEscalate: 'Use urgent care for non-life-threatening after-hours issues. Use ER/911 for emergencies.',
+      questions: ['Is this a covered UHC service?', 'Do I need a referral?', 'Is an outside provider in-network?', 'Will labs or imaging bill separately?'],
+      resources: ['University Health Center', 'College Park Medical Center'],
+    },
+  }
+
+  return { ...base, ...recommendations[category] }
+}
+
+function App() {
+  const [input, setInput] = useState('')
+  const [selectedScenario, setSelectedScenario] = useState('')
+  const [recommendation, setRecommendation] = useState(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [resourceFilter, setResourceFilter] = useState('Campus')
+  const [isDemoOpen, setIsDemoOpen] = useState(false)
+  const navigatorRef = useRef(null)
+  const inputRef = useRef(null)
+
+  const filteredResources = useMemo(() => {
+    if (resourceFilter === 'Campus') {
+      return UMD_RESOURCES.filter((resource) => resource.category === 'Campus' || resource.name.includes('PASS'))
+    }
+    return UMD_RESOURCES.filter((resource) => resource.category === resourceFilter)
+  }, [resourceFilter])
+
+  function runNavigator(text) {
+    const scenarioText = text.trim()
+    if (!scenarioText) return
+    setInput(scenarioText)
+    setSelectedScenario(scenarioText)
+    setRecommendation(null)
+    setIsLoading(true)
+    window.setTimeout(() => {
+      setRecommendation(getCareRecommendation(scenarioText))
+      setIsLoading(false)
+      window.setTimeout(() => inputRef.current?.focus(), 50)
+    }, 650)
+    navigatorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    runNavigator(input)
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f8f9] text-slate-950">
-      <Header />
-      <Hero onScenario={runScenario} />
-      <section className="mx-auto grid w-[min(1160px,calc(100%-32px))] gap-3 py-8 sm:grid-cols-2 lg:grid-cols-4">
-        {dashboardCards.map(([title, description, Icon, tab, accent]) => (
-          <button
-            key={title}
-            onClick={() => setActiveTab(tab)}
-            className={`group flex min-h-[158px] flex-col justify-between rounded-lg border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md ${
-              activeTab === tab ? 'border-teal-500 ring-2 ring-teal-100' : 'border-slate-200'
-            }`}
-          >
-            <span className={`flex h-11 w-11 items-center justify-center rounded-lg ring-1 ${accent}`}>
-              <Icon size={22} />
-            </span>
-            <div>
-              <h3 className="text-base font-bold tracking-tight">{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-            </div>
-          </button>
-        ))}
-      </section>
-
-      <section className="mx-auto grid w-[min(1160px,calc(100%-32px))] gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
-          {activeTab === 'navigator' && <NavigatorPanel concern={concern} setConcern={setConcern} loading={loading} onSubmit={() => askCopilot('navigator')} onScenario={runScenario} />}
-          {activeTab === 'insurance' && <InsurancePanel insuranceText={insuranceText} setInsuranceText={setInsuranceText} loading={loading} onSubmit={() => askCopilot('insurance')} />}
-          {activeTab === 'wellness' && <WellnessPanel />}
-          {activeTab === 'nearby' && <NearbyPanel />}
-          {activeTab === 'benefits' && <BenefitsPanel loading={loading} onSubmit={() => askCopilot('benefits')} />}
-        </div>
-        <CopilotPanel loading={loading} aiResponse={aiResponse} aiMode={aiMode} />
-      </section>
+    <main className="min-h-screen bg-[#f7f5f0] text-neutral-950">
+      <EmergencyBanner />
+      <Nav />
+      <Hero onStart={() => navigatorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+      <ScenarioCards onSelect={runNavigator} selectedScenario={selectedScenario} />
+      <NavigatorSection
+        refEl={navigatorRef}
+        inputRef={inputRef}
+        input={input}
+        setInput={setInput}
+        isLoading={isLoading}
+        recommendation={recommendation}
+        onSubmit={handleSubmit}
+      />
+      <CostCheatSheet />
+      <ResourceDirectory filter={resourceFilter} setFilter={setResourceFilter} resources={filteredResources} />
+      <HiddenBenefits onDemo={() => setIsDemoOpen(true)} />
+      <Footer />
+      {isDemoOpen && <DemoModal onClose={() => setIsDemoOpen(false)} />}
     </main>
   )
 }
 
-function Header() {
+function EmergencyBanner() {
   return (
-    <header className="border-b border-slate-200 bg-white/85 backdrop-blur">
-      <div className="mx-auto flex w-[min(1160px,calc(100%-32px))] flex-wrap items-center justify-between gap-3 py-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-700 text-white">
+    <div className="bg-neutral-950 text-white">
+      <div className="mx-auto flex w-[min(1180px,calc(100%-32px))] flex-wrap items-center justify-center gap-x-4 gap-y-1 py-2 text-center text-sm font-bold">
+        <span className="inline-flex items-center gap-2 text-[#ffd200]"><AlertTriangle size={16} /> Emergency? Call 911</span>
+        <span className="hidden text-white/40 sm:inline">|</span>
+        <span>Mental health crisis? Call/Text 988</span>
+      </div>
+    </div>
+  )
+}
+
+function Nav() {
+  const links = [
+    ['Home', '#home'],
+    ['Care Navigator', '#navigator'],
+    ['SHIP Costs', '#ship-costs'],
+    ['Mental Health', '#resources'],
+    ['Nearby Care', '#resources'],
+  ]
+  return (
+    <header className="sticky top-0 z-30 border-b border-black/10 bg-white/90 backdrop-blur">
+      <nav className="mx-auto flex w-[min(1180px,calc(100%-32px))] flex-wrap items-center justify-between gap-3 py-3">
+        <a href="#home" className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e21833] text-white shadow-sm">
             <HeartPulse size={22} />
           </span>
-          <div>
-            <p className="text-lg font-black tracking-tight">TerpHealth Copilot</p>
-            <p className="text-xs font-medium text-slate-500">UMD student healthcare navigator</p>
-          </div>
+          <span>
+            <span className="block text-lg font-black tracking-tight">TerpHealth Copilot</span>
+            <span className="block text-xs font-bold text-neutral-500">Built for UMD students</span>
+          </span>
+        </a>
+        <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1">
+          {links.map(([label, href]) => (
+            <a key={label} href={href} className="shrink-0 rounded-lg px-3 py-2 text-sm font-bold text-neutral-650 transition hover:bg-white hover:text-[#e21833]">
+              {label}
+            </a>
+          ))}
         </div>
-        <div className="flex max-w-full items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 sm:text-sm">
-          <AlertTriangle size={16} className="shrink-0" />
-          <span>This app is not medical advice. For emergencies call 911 or go to the ER.</span>
-        </div>
-      </div>
+      </nav>
     </header>
   )
 }
 
-function Hero({ onScenario }) {
+function Hero({ onStart }) {
   return (
-    <section className="border-b border-slate-200 bg-white">
-      <div className="mx-auto grid w-[min(1160px,calc(100%-32px))] gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_430px] lg:py-14">
-        <div className="min-w-0">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-800">
-            <Sparkles size={16} />
-            TurboTax + Google Maps for student healthcare
+    <section id="home" className="relative overflow-hidden bg-white">
+      <div className="absolute inset-x-0 top-0 h-2 bg-[linear-gradient(90deg,#e21833_0_25%,#ffd200_25%_50%,#111_50%_75%,#fff_75%_100%)]" />
+      <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-[#ffd200]/20 blur-3xl" />
+      <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-[#e21833]/10 blur-3xl" />
+      <div className="mx-auto grid w-[min(1180px,calc(100%-32px))] gap-8 py-12 lg:grid-cols-[minmax(0,1fr)_430px] lg:py-16">
+        <div className="relative z-10 min-w-0">
+          <div className="mb-5 flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#e21833] px-3 py-1.5 text-sm font-black text-white">
+              <Sparkles size={15} /> Built for UMD students
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#ffd200]/70 bg-[#ffd200]/20 px-3 py-1.5 text-sm font-black text-neutral-950">
+              Go Terps
+            </span>
           </div>
-          <h1 className="max-w-3xl text-4xl font-black leading-[1.05] tracking-tight text-slate-950 sm:text-5xl">
-            Understand care, coverage, and cost before you book.
+          <h1 className="max-w-3xl text-5xl font-black leading-[1.02] tracking-tight text-neutral-950 sm:text-6xl">
+            Know where to go before you get the bill.
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
-            A calm first stop for UMD students who need to decode SHIP-like benefits, choose the right care setting, and avoid avoidable bills.
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-neutral-650">
+            TerpHealth Copilot helps UMD students understand SHIP costs, campus care, mental health support, and nearby low-cost options.
           </p>
-          <div className="mt-7 grid gap-2 sm:grid-cols-2">
-            {demoScenarios.map((scenario) => (
-              <button
-                key={scenario}
-                onClick={() => onScenario(scenario)}
-                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-900"
-              >
-                <span className="min-w-0">{scenario}</span>
-                <ArrowRight size={16} className="shrink-0" />
-              </button>
-            ))}
+          <p className="mt-4 max-w-2xl text-sm font-bold text-neutral-600">
+            Built for UMD students using UMD SHIP/Aetna 2025-2026 benefit estimates.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <button onClick={onStart} className="inline-flex items-center gap-2 rounded-xl bg-[#e21833] px-5 py-3 text-sm font-black text-white shadow-lg shadow-red-900/10 transition hover:-translate-y-0.5 hover:bg-[#b9152b]">
+              Start with a symptom <ArrowRight size={17} />
+            </button>
+            <a href="#ship-costs" className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:-translate-y-0.5 hover:border-[#ffd200] hover:bg-[#ffd200]/15">
+              View SHIP cost cheat sheet
+            </a>
           </div>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-[#f7fbfb] p-4 shadow-sm">
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="relative z-10 rounded-2xl border border-neutral-200 bg-neutral-950 p-4 text-white shadow-2xl shadow-neutral-950/15">
+          <div className="rounded-xl border border-white/10 bg-white/[0.06] p-4">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Care route</p>
-                <p className="mt-1 font-black">Sore throat, not emergency</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ffd200]">Aetna Student Health</p>
+                <h2 className="mt-2 text-2xl font-black">UMD SHIP 2025-2026</h2>
               </div>
-              <span className="rounded-lg bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Low cost</span>
+              <ShieldCheck className="text-[#ffd200]" />
             </div>
-            <div className="mt-4 space-y-3">
-              <RouteStep icon={Stethoscope} label="Best first stop" value="UMD Health Center" tone="teal" />
-              <RouteStep icon={Clock3} label="After hours" value="Nearby urgent care" tone="sky" />
-              <RouteStep icon={WalletCards} label="Avoid unless emergency" value="ER: high cost" tone="red" />
+            <div className="mt-5 grid gap-3">
+              <HeroStat label="UHC covered services" value="Likely $0" />
+              <HeroStat label="Doctor/specialist" value="$25 copay" />
+              <HeroStat label="ER listed copay" value="$100" />
+              <HeroStat label="In-network deductible" value="$250" />
             </div>
-          </div>
-          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-            <Metric value="$0-low" label="Campus care" />
-            <Metric value="$$" label="Urgent care" />
-            <Metric value="911" label="Emergency" />
           </div>
         </div>
       </div>
@@ -236,164 +464,298 @@ function Hero({ onScenario }) {
   )
 }
 
-function RouteStep({ icon: Icon, label, value, tone }) {
-  const tones = {
-    teal: 'bg-teal-50 text-teal-700',
-    sky: 'bg-sky-50 text-sky-700',
-    red: 'bg-red-50 text-red-700',
+function HeroStat({ label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/10 px-4 py-3">
+      <span className="text-sm font-semibold text-white/75">{label}</span>
+      <span className="text-base font-black text-white">{value}</span>
+    </div>
+  )
+}
+
+function ScenarioCards({ onSelect, selectedScenario }) {
+  return (
+    <section className="border-y border-black/10 bg-[#fffaf0]">
+      <div className="mx-auto w-[min(1180px,calc(100%-32px))] py-8">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-sm font-black uppercase tracking-[0.14em] text-[#e21833]">Demo mode</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight">Pick a UMD student scenario</h2>
+          </div>
+          <p className="max-w-xl text-sm font-semibold leading-6 text-neutral-600">
+            Clicking a card auto-fills the navigator, scrolls to the answer, and runs the recommendation.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {scenarios.map((scenario) => {
+            const isSelected = selectedScenario === scenario
+            return (
+              <button
+                key={scenario}
+                onClick={() => onSelect(scenario)}
+                className={`group min-h-[96px] rounded-2xl border-t-4 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  isSelected ? 'border-t-[#e21833] ring-2 ring-[#ffd200]' : 'border-t-[#ffd200] border-x-neutral-200 border-b-neutral-200'
+                }`}
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <span className="font-black text-neutral-950">{scenario}</span>
+                  <ArrowRight size={17} className={`shrink-0 transition ${isSelected ? 'text-[#e21833]' : 'text-neutral-400 group-hover:text-[#e21833]'}`} />
+                </span>
+                {isSelected && <span className="mt-3 inline-flex rounded-full bg-[#e21833]/10 px-2 py-1 text-xs font-black text-[#e21833]">Selected</span>}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function NavigatorSection({ refEl, inputRef, input, setInput, isLoading, recommendation, onSubmit }) {
+  return (
+    <section id="navigator" ref={refEl} className="mx-auto grid w-[min(1180px,calc(100%-32px))] gap-6 py-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <form onSubmit={onSubmit} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm lg:sticky lg:top-24 lg:self-start">
+        <SectionLabel icon={Stethoscope} label="AI Care Navigator" />
+        <h2 className="mt-3 text-3xl font-black tracking-tight">What is going on?</h2>
+        <p className="mt-3 text-sm font-semibold leading-6 text-neutral-600">
+          Example: I have a sore throat and I am worried about cost.
+        </p>
+        <textarea
+          ref={inputRef}
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder="Describe your concern..."
+          className="mt-5 min-h-40 w-full resize-y rounded-xl border border-neutral-250 bg-neutral-50 p-4 text-base leading-7 outline-none transition placeholder:text-neutral-400 focus:border-[#e21833] focus:bg-white focus:ring-4 focus:ring-red-100"
+        />
+        <button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-950 px-5 py-3 text-sm font-black text-white transition hover:bg-[#e21833]">
+          {isLoading ? <Loader2 size={18} className="animate-spin" /> : <MessageSquareText size={18} />}
+          Generate recommendation
+        </button>
+        <p className="mt-4 text-xs font-semibold leading-5 text-neutral-500">
+          Care navigation only. No diagnosis. Costs are estimates based on UMD SHIP/Aetna 2025-2026 summary.
+        </p>
+      </form>
+      <RecommendationCard isLoading={isLoading} recommendation={recommendation} />
+    </section>
+  )
+}
+
+function RecommendationCard({ isLoading, recommendation }) {
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[560px] items-center justify-center rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm">
+        <div className="text-center">
+          <Loader2 size={38} className="mx-auto animate-spin text-[#e21833]" />
+          <p className="mt-5 text-lg font-black">Finding the best UMD care route...</p>
+          <p className="mt-2 max-w-md text-sm font-semibold leading-6 text-neutral-600">Checking campus care, SHIP estimates, urgent care backup, and safety escalation.</p>
+        </div>
+      </div>
+    )
   }
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tones[tone]}`}>
-        <Icon size={18} />
-      </span>
-      <div className="min-w-0">
-        <p className="text-xs font-bold text-slate-500">{label}</p>
-        <p className="truncate text-sm font-black text-slate-950">{value}</p>
+
+  if (!recommendation) {
+    return (
+      <div className="min-h-[560px] rounded-2xl border border-dashed border-neutral-300 bg-white p-6 shadow-sm">
+        <div className="flex h-full min-h-[500px] flex-col items-center justify-center text-center">
+          <ClipboardList size={42} className="text-neutral-300" />
+          <h3 className="mt-4 text-2xl font-black">Your answer appears here</h3>
+          <p className="mt-3 max-w-md text-sm font-semibold leading-6 text-neutral-600">
+            Choose a scenario above or type your own concern. The response will clearly show the best first stop, estimated SHIP cost, backups, and red flags.
+          </p>
+        </div>
       </div>
-    </div>
-  )
-}
+    )
+  }
 
-function Metric({ value, label }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <p className="text-lg font-black text-slate-950">{value}</p>
-      <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
-    </div>
-  )
-}
-
-function Tabs({ activeTab, setActiveTab }) {
-  const tabs = [['navigator', 'Navigator'], ['insurance', 'Insurance'], ['wellness', 'Wellness'], ['nearby', 'Nearby Care'], ['benefits', 'Hidden Benefits']]
-  return (
-    <div className="mb-6 flex gap-1 overflow-x-auto border-b border-slate-200 pb-2">
-      {tabs.map(([id, label]) => (
-        <button key={id} onClick={() => setActiveTab(id)} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-bold transition ${activeTab === id ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'}`}>{label}</button>
-      ))}
-    </div>
-  )
-}
-
-function NavigatorPanel({ concern, setConcern, loading, onSubmit, onScenario }) {
-  return (
-    <div>
-      <PanelHeader icon={Stethoscope} title="Smart Care Navigator" text="Describe what is going on. The copilot ranks options by cost, distance, speed, and clinical fit without trying to diagnose." />
-      <textarea value={concern} onChange={(event) => setConcern(event.target.value)} placeholder="Example: I have a sore throat and I am not sure if I should go to the health center or urgent care." className="mt-5 min-h-36 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-100" />
-      <div className="mt-4 flex flex-wrap gap-2">
-        {demoScenarios.map((scenario) => <button key={scenario} onClick={() => onScenario(scenario)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800">{scenario}</button>)}
+    <article className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-100 pb-4">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.14em] text-[#e21833]">Recommendation</p>
+          <h3 className="mt-2 text-2xl font-black tracking-tight">{recommendation.bestOption}</h3>
+        </div>
+        <span className="rounded-full bg-[#ffd200]/25 px-3 py-1 text-xs font-black text-neutral-950">{recommendation.category.replaceAll('_', ' ')}</span>
       </div>
-      <PrimaryButton loading={loading} onClick={onSubmit} label="Get care recommendation" />
-      <CostEstimator />
+      <div className="mt-5 grid gap-4">
+        <AnswerBlock title="Estimated cost with UMD SHIP" icon={BadgeDollarSign} tone="gold">
+          {recommendation.estimatedCost}
+        </AnswerBlock>
+        <AnswerBlock title="Why this is best" icon={CheckCircle2}>
+          {recommendation.why}
+        </AnswerBlock>
+        <AnswerBlock title="Cheaper alternative / backup" icon={MapPin}>
+          {recommendation.cheaperAlternative}
+        </AnswerBlock>
+        <AnswerBlock title="Red flags / when to escalate" icon={AlertTriangle} tone="red">
+          {recommendation.whenToEscalate}
+        </AnswerBlock>
+        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+          <h4 className="font-black">Questions to ask before booking</h4>
+          <ul className="mt-3 space-y-2">
+            {recommendation.questions.map((question) => (
+              <li key={question} className="flex gap-2 text-sm font-semibold leading-6 text-neutral-650">
+                <CheckCircle2 size={16} className="mt-1 shrink-0 text-[#e21833]" />
+                {question}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold leading-6 text-red-900">
+          {recommendation.disclaimer}
+        </div>
+        <p className="text-xs font-bold leading-5 text-neutral-500">{recommendation.sourceNote}</p>
+      </div>
+    </article>
+  )
+}
+
+function AnswerBlock({ title, icon: Icon, children, tone = 'neutral' }) {
+  const toneClass = {
+    neutral: 'bg-neutral-50 text-neutral-950',
+    gold: 'bg-[#ffd200]/20 text-neutral-950',
+    red: 'bg-red-50 text-red-900',
+  }[tone]
+  return (
+    <div className={`rounded-xl border border-neutral-200 p-4 ${toneClass}`}>
+      <div className="mb-2 flex items-center gap-2">
+        <Icon size={18} className={tone === 'red' ? 'text-[#e21833]' : 'text-neutral-700'} />
+        <h4 className="font-black">{title}</h4>
+      </div>
+      <p className="text-sm font-semibold leading-6 text-neutral-700">{children}</p>
     </div>
   )
 }
 
-function InsurancePanel({ insuranceText, setInsuranceText, loading, onSubmit }) {
+function CostCheatSheet() {
   return (
-    <div>
-      <PanelHeader icon={ShieldCheck} title="Insurance Decoder" text="Paste insurance text or use the included SHIP-like sample to translate benefits into student-friendly language." />
-      <label className="mt-5 flex cursor-pointer flex-col gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between">
-        <span className="flex items-center gap-3 font-semibold"><ClipboardCheck size={20} className="text-teal-700" /> Optional PDF upload UI for demo</span>
-        <input type="file" accept="application/pdf" className="max-w-full text-xs" />
-      </label>
-      <textarea value={insuranceText} onChange={(event) => setInsuranceText(event.target.value)} className="mt-4 min-h-64 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-900 outline-none transition focus:border-teal-500 focus:bg-white focus:ring-4 focus:ring-teal-100" />
-      <PrimaryButton loading={loading} onClick={onSubmit} label="Decode insurance in plain English" />
-    </div>
-  )
-}
-
-function WellnessPanel() {
-  return (
-    <div>
-      <PanelHeader icon={Brain} title="Mental Health & Wellness Hub" text="A campus-style map for support before stress becomes a crisis." />
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        {wellnessResources.map((item) => (
-          <div key={item} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <CheckCircle2 size={20} className="text-violet-700" />
-            <h3 className="mt-3 font-bold text-slate-950">{item}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Ask about appointments, groups, workshops, crisis response, and low-cost care paths.</p>
+    <section id="ship-costs" className="bg-white py-10">
+      <div className="mx-auto w-[min(1180px,calc(100%-32px))]">
+        <SectionLabel icon={ShieldCheck} label="SHIP Costs" />
+        <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-black tracking-tight">UMD SHIP cost cheat sheet</h2>
+            <p className="mt-2 text-sm font-semibold text-neutral-600">{UMD_SHIP_BENEFITS.provider} | {UMD_SHIP_BENEFITS.network} | Plan year {UMD_SHIP_BENEFITS.planYear}</p>
           </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function NearbyPanel() {
-  return (
-    <div>
-      <PanelHeader icon={Building2} title="Nearby Low-Cost Care" text="Mock College Park and Maryland resources for a hackathon-ready local demo." />
-      <div className="mt-5 space-y-3">
-        {resources.map(([name, type, cost, when, notes]) => (
-          <div key={name} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0"><h3 className="font-black text-slate-950">{name}</h3><p className="mt-1 text-sm font-semibold text-teal-700">{type}</p></div>
-              <span className="w-fit rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">{cost}</span>
+          <span className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm font-black">{UMD_SHIP_BENEFITS.annualStudentCostEstimate}</span>
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {costCards.map(([title, value, text, Icon]) => (
+            <div key={title} className="rounded-2xl border border-neutral-200 border-t-[#e21833] border-t-4 bg-white p-5 shadow-sm">
+              <Icon size={22} className="text-[#e21833]" />
+              <h3 className="mt-4 text-sm font-black text-neutral-600">{title}</h3>
+              <p className="mt-2 text-2xl font-black tracking-tight">{value}</p>
+              <p className="mt-3 text-sm font-semibold leading-6 text-neutral-600">{text}</p>
             </div>
-            <p className="mt-3 text-sm leading-6 text-slate-700"><strong>When to use:</strong> {when}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{notes}</p>
+          ))}
+        </div>
+        <div className="mt-5 rounded-xl border border-[#ffd200]/70 bg-[#ffd200]/20 p-4 text-sm font-bold leading-6 text-neutral-800">
+          Always confirm network status and final cost with Aetna/provider. All amounts are estimated / based on UMD SHIP 2025-2026 summary; final costs depend on provider, network status, coding, and services performed.
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ResourceDirectory({ filter, setFilter, resources }) {
+  const filters = ['Campus', 'Mental Health', 'Urgent Care', 'Low Cost', 'Emergency']
+  return (
+    <section id="resources" className="py-10">
+      <div className="mx-auto w-[min(1180px,calc(100%-32px))]">
+        <SectionLabel icon={MapPin} label="Resource Directory" />
+        <h2 className="mt-3 text-3xl font-black tracking-tight">UMD and nearby care options</h2>
+        <div className="mt-5 flex gap-2 overflow-x-auto rounded-2xl border border-neutral-200 bg-white p-2">
+          {filters.map((item) => (
+            <button key={item} onClick={() => setFilter(item)} className={`shrink-0 rounded-xl px-4 py-2 text-sm font-black transition ${filter === item ? 'bg-[#e21833] text-white' : 'bg-neutral-50 text-neutral-700 hover:bg-[#ffd200]/25'}`}>
+              {item}
+            </button>
+          ))}
+        </div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          {resources.map((resource) => (
+            <div key={resource.name} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-[#e21833]">{resource.type}</p>
+                  <h3 className="mt-1 text-xl font-black tracking-tight">{resource.name}</h3>
+                </div>
+                <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-black text-neutral-700">{resource.category}</span>
+              </div>
+              <p className="mt-4 text-sm font-semibold leading-6 text-neutral-650"><strong>Best for:</strong> {resource.bestFor.join(', ')}</p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-neutral-650"><strong>Estimated cost:</strong> {resource.estimatedCostWithSHIP}</p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-neutral-650"><strong>Phone/location:</strong> {resource.phone} | {resource.location}</p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-neutral-650"><strong>Ask before you go:</strong> {resource.ask}</p>
+              <p className="mt-3 rounded-xl bg-neutral-50 p-3 text-sm font-semibold leading-6 text-neutral-600">{resource.notes}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function HiddenBenefits({ onDemo }) {
+  return (
+    <section className="bg-neutral-950 py-10 text-white">
+      <div className="mx-auto w-[min(1180px,calc(100%-32px))]">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <SectionLabel icon={BookOpenText} label="Hidden Benefits" dark />
+            <h2 className="mt-3 text-3xl font-black tracking-tight">Things Terps may not realize they already have</h2>
           </div>
-        ))}
+          <button onClick={onDemo} className="rounded-xl bg-[#ffd200] px-4 py-3 text-sm font-black text-neutral-950 transition hover:-translate-y-0.5">
+            Open Demo Script
+          </button>
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {hiddenBenefits.map((benefit) => (
+            <div key={benefit} className="rounded-2xl border border-white/10 bg-white/8 p-5">
+              <CheckCircle2 className="text-[#ffd200]" />
+              <p className="mt-4 font-bold leading-6 text-white">{benefit}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function DemoModal({ onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-black uppercase tracking-[0.14em] text-[#e21833]">Judge demo mode</p>
+            <h2 className="mt-2 text-2xl font-black">Demo Script</h2>
+          </div>
+          <button onClick={onClose} className="rounded-lg bg-neutral-100 p-2 transition hover:bg-neutral-200" aria-label="Close demo script">
+            <X size={18} />
+          </button>
+        </div>
+        <p className="mt-5 text-base font-semibold leading-8 text-neutral-700">
+          Imagine a UMD student has a sore throat and is scared of surprise bills. Instead of guessing between ER, urgent care, or campus care, they click "I have a sore throat." TerpHealth Copilot recommends UMD Health Center first, estimates $0 for covered SHIP services, gives urgent care and ER backup costs, and tells them what questions to ask before booking.
+        </p>
       </div>
     </div>
   )
 }
 
-function BenefitsPanel({ loading, onSubmit }) {
+function SectionLabel({ icon: Icon, label, dark = false }) {
   return (
-    <div>
-      <PanelHeader icon={WalletCards} title="Hidden Benefits Finder" text="Benefits students may already have but often miss in the plan summary." />
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        {benefitCards.map(([title, text]) => <div key={title} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"><h3 className="font-bold text-slate-950">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></div>)}
-      </div>
-      <PrimaryButton loading={loading} onClick={onSubmit} label="Ask AI to find hidden benefits" />
-    </div>
+    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-black ${dark ? 'bg-white/10 text-[#ffd200]' : 'bg-[#e21833]/10 text-[#e21833]'}`}>
+      <Icon size={16} /> {label}
+    </span>
   )
 }
 
-function CostEstimator() {
+function Footer() {
   return (
-    <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
-      <div className="mb-4 flex items-center gap-2"><Activity size={19} className="text-teal-700" /><h3 className="font-black text-slate-950">Cost estimator</h3></div>
-      <div className="grid gap-3">
-        {costRows.map(([place, cost, note]) => <div key={place} className="grid gap-2 rounded-lg border border-slate-100 bg-white p-3 sm:grid-cols-[150px_130px_1fr]"><strong className="text-slate-950">{place}</strong><span className="font-bold text-teal-700">{cost}</span><span className="text-sm text-slate-600">{note}</span></div>)}
+    <footer className="bg-white py-6">
+      <div className="mx-auto flex w-[min(1180px,calc(100%-32px))] flex-wrap items-center justify-between gap-3 text-sm font-semibold text-neutral-600">
+        <span>TerpHealth Copilot | Go Terps</span>
+        <span>{disclaimer}</span>
       </div>
-    </div>
-  )
-}
-
-function CopilotPanel({ loading, aiResponse, aiMode }) {
-  return (
-    <aside className="min-w-0 rounded-lg border border-slate-200 bg-slate-950 p-4 text-white shadow-sm lg:sticky lg:top-5 lg:self-start">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0"><p className="text-sm font-semibold text-teal-200">Copilot response</p><h2 className="mt-1 text-2xl font-black tracking-tight">Care plan preview</h2></div>
-        <span className="shrink-0 rounded-lg bg-white/10 px-3 py-1 text-xs font-bold text-teal-100">{aiMode.includes('claude') ? 'Claude API' : 'Demo mock'}</span>
-      </div>
-      <div className="mt-5 min-h-[520px] overflow-auto rounded-lg border border-white/10 bg-white/[0.06] p-4">
-        {loading && <div className="flex h-80 flex-col items-center justify-center text-center text-teal-50"><Loader2 className="mb-4 animate-spin" size={34} /><p className="font-bold">Ranking care options...</p><p className="mt-2 max-w-sm text-sm leading-6 text-slate-300">Cost, speed, campus fit, and safety routing are being weighed for a student-friendly answer.</p></div>}
-        {!loading && aiResponse && <pre className="whitespace-pre-wrap text-sm leading-7 text-slate-100">{aiResponse}</pre>}
-        {!loading && !aiResponse && <div className="space-y-4 text-sm leading-7 text-slate-200"><p>Start with a sample scenario, paste an insurance summary, or ask the hidden benefits finder.</p><div className="rounded-lg border border-white/10 bg-white/8 p-4"><p className="font-bold text-white">Response format</p><ol className="mt-2 list-decimal space-y-1 pl-5"><li>Best option</li><li>Why</li><li>Estimated cost</li><li>Backup options</li><li>Questions to ask before booking</li><li>Safety disclaimer</li></ol></div><p className="text-teal-100">This app is not medical advice. For emergencies call 911 or go to the ER.</p></div>}
-      </div>
-    </aside>
-  )
-}
-
-function PanelHeader({ icon: Icon, title, text }) {
-  return (
-    <div className="flex gap-4">
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-teal-100"><Icon size={24} /></span>
-      <div className="min-w-0"><h2 className="text-2xl font-black tracking-tight text-slate-950">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></div>
-    </div>
-  )
-}
-
-function PrimaryButton({ loading, onClick, label }) {
-  return (
-    <button onClick={onClick} disabled={loading} className="mt-5 inline-flex max-w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70">
-      {loading ? <Loader2 className="animate-spin" size={18} /> : <MessageSquareText size={18} />}
-      <span>{label}</span>
-    </button>
+    </footer>
   )
 }
 
